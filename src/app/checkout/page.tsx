@@ -1,13 +1,12 @@
 "use client";
 
 import { getWompiSignature } from '../actions/wompi';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, MessageCircle, MapPin, Store, Clock, CreditCard, AlertCircle, CalendarDays } from 'lucide-react';
 import { useCartStore } from '../../lib/store';
 import { Cormorant_Garamond } from 'next/font/google';
-
 import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { DEFAULT_DELIVERY_TIME_SLOTS, generateOrderNumber, fetchDeliveryConfig, DeliveryConfig } from '../../lib/api';
@@ -15,68 +14,54 @@ import { getAvailableDeliveryDates } from '../../lib/deliveryLogic';
 
 const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ['600'] });
 
-// 1. El componente del Formulario (Sin export default)
 function CheckoutForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isDirect = searchParams.get('type') === 'direct';
+  const { items, directPurchaseItem, getTotal, clearCart, setDirectPurchaseItem } = useCartStore();
 
-  const { items, directPurchaseItem, getTotal, clearCart, updateQuantity, setDirectPurchaseItem } = useCartStore();
   const checkoutItems = isDirect ? (directPurchaseItem ? [directPurchaseItem] : []) : items;
+  const cartIdString = useMemo(() => JSON.stringify(checkoutItems), [checkoutItems]);
 
   const [mounted, setMounted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- Customer Data State ---
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery');
   const [address, setAddress] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const [notes, setNotes] = useState('');
-
-  // --- Operational State ---
   const [paymentMethod, setPaymentMethod] = useState<'wompi' | 'manual'>('wompi');
 
-  // --- Dynamic Delivery State ---
   const [deliveryConfig, setDeliveryConfig] = useState<DeliveryConfig | null>(null);
   const [availableDates, setAvailableDates] = useState<{ dateString: string, display: string }[]>([]);
   const [requiresAdvisor, setRequiresAdvisor] = useState(false);
-
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
-
-  // NEW: State for Custom Future Date
   const [isCustomDate, setIsCustomDate] = useState(false);
   const [customDate, setCustomDate] = useState('');
 
-  // FIX: Crear una "foto" del carrito para que React no se confunda y borre las fechas
-  const cartDependencies = JSON.stringify(checkoutItems);
-
-  // Load Config & Calculate Dates
   useEffect(() => {
     setMounted(true);
-
-    const loadConfigAndDates = async () => {
+    const loadConfig = async () => {
       const config = await fetchDeliveryConfig();
       if (config && checkoutItems.length > 0) {
         setDeliveryConfig(config);
-
         const result = getAvailableDeliveryDates(checkoutItems, config);
         setRequiresAdvisor(result.requiresAdvisor);
         setAvailableDates(result.dates);
 
-        // FIX: Solo asignar la fecha si el usuario no ha escogido una
         if (result.dates.length > 0) {
-          setSelectedDate(prev => prev ? prev : result.dates[0].dateString);
+          setSelectedDate(prev => prev || result.dates[0].dateString);
         }
-
-        if (result.requiresAdvisor) {
-          setPaymentMethod('manual');
-        }
+        if (result.requiresAdvisor) setPaymentMethod('manual');
       }
     };
+    loadConfig();
+  }, [cartIdString]);
 
+<<<<<<< HEAD
     if (checkoutItems.length > 0) {
       loadConfigAndDates();
     }
@@ -96,47 +81,30 @@ function CheckoutForm() {
 
   const isWompi = paymentMethod === 'wompi';
   const deliveryTimeSlots = deliveryConfig?.timeSlots?.length ? deliveryConfig.timeSlots : DEFAULT_DELIVERY_TIME_SLOTS;
+=======
+  const finalTotal = getTotal(isDirect) + (deliveryMethod === 'delivery' ? 10000 : 0);
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
 
   const handleProcessOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Determine the final date based on what they selected
-    const finalSelectedDate = isCustomDate ? customDate : selectedDate;
-
-    if (isWompi && !requiresAdvisor && (!finalSelectedDate || !selectedTime)) {
-      alert("Por favor selecciona una fecha y hora de entrega.");
-      return;
+    const finalDate = isCustomDate ? customDate : selectedDate;
+    if (paymentMethod === 'wompi' && !requiresAdvisor && (!finalDate || !selectedTime)) {
+      alert("Por favor selecciona una fecha y hora."); return;
     }
 
     setIsSubmitting(true);
     const targetTab = window.open('about:blank', '_blank');
-
     try {
       const orderNumber = await generateOrderNumber();
       const orderId = `ORD-${orderNumber}`;
-      const newOrderRef = doc(db, 'orders', orderId);
+      const deliveryDateString = requiresAdvisor ? 'Definir con asesor' : `${finalDate} (${selectedTime})`;
 
-      const deliveryDateString = requiresAdvisor ? 'Definir con asesor' : `${finalSelectedDate} (${selectedTime})`;
-
-      await runTransaction(db, async (transaction) => {
-        transaction.set(newOrderRef, {
-          orderNumber,
-          customerName: name || 'Sin nombre',
-          customerPhone: phone || 'Sin teléfono',
-          deliveryMethod,
-          address: deliveryMethod === 'delivery' ? address : null,
-          neighborhood: deliveryMethod === 'delivery' ? neighborhood : null,
-          deliveryDate: deliveryDateString,
-          items: checkoutItems,
-          subTotal,
-          deliveryFee,
-          totalAmount: finalTotal,
-          notes,
-          paymentMethod,
-          paymentStatus: 'PENDIENTE',
-          orderStatus: 'NUEVO',
-          status: 'pending',
-          createdAt: serverTimestamp()
+      await runTransaction(db, async (t) => {
+        t.set(doc(db, 'orders', orderId), {
+          orderNumber, customerName: name || 'Sin nombre', customerPhone: phone || 'Sin teléfono',
+          deliveryMethod, address: deliveryMethod === 'delivery' ? address : null,
+          deliveryDate: deliveryDateString, items: checkoutItems, totalAmount: finalTotal,
+          paymentMethod, status: 'pending', createdAt: serverTimestamp()
         });
       });
 
@@ -145,62 +113,28 @@ function CheckoutForm() {
       if (paymentMethod === 'wompi') {
         const amountInCents = Math.round(finalTotal * 100);
         const signature = await getWompiSignature(orderId, amountInCents);
-        const publicKey = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY?.trim() || '';
-        const redirectUrl = `${window.location.origin}/success`;
-
         const params = new URLSearchParams({
-          'public-key': publicKey,
-          'currency': 'COP',
-          'amount-in-cents': amountInCents.toString(),
-          'reference': orderId,
-          'signature:integrity': signature,
-          'redirect-url': redirectUrl,
+          'public-key': process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY || '',
+          'currency': 'COP', 'amount-in-cents': amountInCents.toString(),
+          'reference': orderId, 'signature:integrity': signature,
+          'redirect-url': `${window.location.origin}/success`
         });
-
-        const targetUrl = `https://checkout.wompi.co/p/?${params.toString()}`;
-        if (targetTab) targetTab.location.href = targetUrl; else window.location.href = targetUrl;
-        router.push('/success');
-
+        const url = `https://checkout.wompi.co/p/?${params.toString()}`;
+        if (targetTab) targetTab.location.href = url; else window.location.href = url;
       } else {
-        const itemsList = checkoutItems.map(item => {
-          let text = `• ${item.quantity}x ${item.name} ($${(item.calculatedPrice * item.quantity).toLocaleString('es-CO')})`;
-          if (item.selectedVariant) text += `\n  - ${item.selectedVariant.name}`;
-          if (item.selectedPreferences?.length) {
-            text += `\n  - ${item.selectedPreferences.map(p => p.name).join(', ')}`;
-          }
-          return text;
-        }).join('\n');
-
-        let message = `¡Hola Aura Bakery! Quisiera que me ayudes a completar mi pedido: \n\n`;
-        message += `*ID:* #${orderNumber}\n`;
-        message += `*CUÁNDO:* ${deliveryDateString}\n`;
-        message += `*MI ORDEN:*\n${itemsList}\n\n`;
-        message += `*SUBTOTAL:* $${subTotal.toLocaleString('es-CO')}\n`;
-        message += `*DOMICILIO:* $${deliveryFee.toLocaleString('es-CO')}\n`;
-        message += `*TOTAL:* $${finalTotal.toLocaleString('es-CO')}\n\n`;
-
-        message += `*DATOS:*\n`;
-        if (name) message += `- Nombre: ${name}\n`;
-        if (phone) message += `- Teléfono: ${phone}\n`;
-        if (notes) message += `\n*NOTAS:* ${notes}`;
-
-        const encodedMessage = encodeURIComponent(message);
-        const whatsappNumber = "573173285832";
-
-        const targetUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
-        if (targetTab) targetTab.location.href = targetUrl; else window.location.href = targetUrl;
+        if (targetTab) targetTab.close();
         router.push('/success');
       }
-
-    } catch (error: any) {
+    } catch (err) {
       if (targetTab) targetTab.close();
-      console.error("Transaction failed: ", error);
-      alert(error.message || "Hubo un error al procesar tu pedido. Por favor intenta de nuevo.");
       setIsSubmitting(false);
     }
   };
 
+  if (!mounted || checkoutItems.length === 0) return null;
+
   return (
+<<<<<<< HEAD
     <>
       <div className="bg-white sticky top-0 z-20 border-b border-gray-100 px-6 py-4 flex items-center gap-4">
         <Link href={isDirect ? "/menu" : "/cart"} className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors">
@@ -436,17 +370,56 @@ function CheckoutForm() {
             type="submit"
             disabled={isSubmitting}
             className={`w-full text-white text-lg font-bold py-4 rounded-full flex items-center justify-center gap-2 transition-all shadow-xl active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ${paymentMethod === 'wompi' ? 'bg-[#002B56] hover:bg-[#001f3e] shadow-blue-100' : 'bg-[#25D366] hover:bg-[#20bd5a] shadow-green-100' }`}
+=======
+    <div className="max-w-xl mx-auto px-6 py-10">
+      <h1 className={`text-2xl mb-8 ${cormorant.className}`}>finalizar pedido</h1>
+      <form onSubmit={handleProcessOrder} className="space-y-6">
+        {/* Date Dropdown */}
+        <div>
+          <label className="text-xs font-bold lowercase mb-2 block">fecha de entrega</label>
+          <select
+            value={isCustomDate ? 'custom' : selectedDate}
+            onChange={(e) => {
+              if (e.target.value === 'custom') setIsCustomDate(true);
+              else { setIsCustomDate(false); setSelectedDate(e.target.value); }
+            }}
+            className="w-full bg-gray-50 p-4 rounded-xl border border-gray-100 outline-none"
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
           >
-            {isSubmitting ? 'procesando...' : paymentMethod === 'wompi' ? 'ir a pagar' : 'contáctanos por whatsapp'}
-          </button>
-        </form>
-      </div>
-    </>
+            {availableDates.map(d => <option key={d.dateString} value={d.dateString}>{d.display}</option>)}
+            <option value="custom">📅 otra fecha futura...</option>
+          </select>
+        </div>
+
+        {/* DYNAMIC TIME DROPDOWN */}
+        {!requiresAdvisor && (
+          <div>
+            <label className="text-xs font-bold lowercase mb-2 block">jornada</label>
+            <select
+              required
+              value={selectedTime}
+              onChange={(e) => setSelectedTime(e.target.value)}
+              className="w-full bg-gray-50 p-4 rounded-xl border border-gray-100 outline-none"
+            >
+              <option value="">selecciona una jornada...</option>
+              {deliveryConfig?.deliveryWindows.map(win => (
+                <option key={win} value={win}>{win}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <button type="submit" disabled={isSubmitting} className="w-full bg-black text-white py-4 rounded-full font-bold">
+          {isSubmitting ? 'procesando...' : 'confirmar pedido'}
+        </button>
+      </form>
+    </div>
   );
 }
 
-// 2. El export default con Suspense (Esto arregla el error de compilación de Next.js)
 export default function CheckoutPage() {
+<<<<<<< HEAD
   return (
     <main className="min-h-screen bg-gray-50 pb-32 font-sans">
       <Suspense fallback={
@@ -459,3 +432,7 @@ export default function CheckoutPage() {
     </main>
   );
 }
+=======
+  return <Suspense fallback={<p>cargando...</p>}><CheckoutForm /></Suspense>;
+}
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)

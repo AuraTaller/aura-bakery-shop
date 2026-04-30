@@ -12,10 +12,17 @@ import { Product, DeliveryWindow } from "./mockData";
 
 // --- Delivery Configuration Interface ---
 export interface DeliveryConfig {
+<<<<<<< HEAD
   closedDaysOfWeek: number[];
   blackoutDates: string[];
   cutoffTime: number;
   timeSlots: string[];
+=======
+  closedDaysOfWeek: number[]; 
+  blackoutDates: string[];    
+  cutoffTime: number;
+  deliveryWindows: string[]; // NEW: Dynamic time slots
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
 }
 
 export const DEFAULT_DELIVERY_TIME_SLOTS = [
@@ -30,6 +37,7 @@ export const fetchDeliveryConfig = async (): Promise<DeliveryConfig | null> => {
     const docSnap = await getDoc(configRef);
 
     if (docSnap.exists()) {
+<<<<<<< HEAD
       const data = docSnap.data() as Partial<DeliveryConfig>;
       return {
         closedDaysOfWeek: data.closedDaysOfWeek || [0],
@@ -44,6 +52,21 @@ export const fetchDeliveryConfig = async (): Promise<DeliveryConfig | null> => {
           blackoutDates: [],
           cutoffTime: 17,
           timeSlots: DEFAULT_DELIVERY_TIME_SLOTS,
+=======
+      const data = docSnap.data();
+      return {
+        closedDaysOfWeek: data.closedDaysOfWeek || [0],
+        blackoutDates: data.blackoutDates || [],
+        cutoffTime: data.cutoffTime ?? 17,
+        deliveryWindows: data.deliveryWindows || ["Mañana (8:00 AM - 12:00 PM)", "Tarde (1:00 PM - 5:00 PM)"]
+      } as DeliveryConfig;
+    } else {
+      return {
+          closedDaysOfWeek: [0],
+          blackoutDates: [],
+          cutoffTime: 17,
+          deliveryWindows: ["Mañana (8:00 AM - 12:00 PM)", "Tarde (1:00 PM - 5:00 PM)"]
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
       };
     }
   } catch (error) {
@@ -52,24 +75,22 @@ export const fetchDeliveryConfig = async (): Promise<DeliveryConfig | null> => {
   }
 };
 
-// --- NEW: Fetch Featured Products ---
+// --- Fetch Featured Products ---
 export const fetchFeaturedProducts = async (): Promise<Product[]> => {
   try {
     const featRef = doc(db, "settings", "featured");
     const featSnap = await getDoc(featRef);
-
     if (!featSnap.exists()) return [];
-
     const featuredIds = featSnap.data().productIds as string[];
     if (!featuredIds || featuredIds.length === 0) return [];
-
     const allProducts = await fetchProducts();
-
-    // Return products in the specific order saved in the admin
     return featuredIds
       .map(id => allProducts.find(p => p.id === id))
       .filter((p): p is Product => p !== undefined);
+<<<<<<< HEAD
 
+=======
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
   } catch (error) {
     console.error("Error fetching featured products:", error);
     return [];
@@ -79,15 +100,23 @@ export const fetchFeaturedProducts = async (): Promise<Product[]> => {
 // --- Generate Sequential Order Numbers ---
 export const generateOrderNumber = async (): Promise<number> => {
   const counterRef = doc(db, "config", "order_counter");
+<<<<<<< HEAD
 
   return await runTransaction(db, async (transaction) => {
     const counterDoc = await transaction.get(counterRef);
 
+=======
+  return await runTransaction(db, async (transaction) => {
+    const counterDoc = await transaction.get(counterRef);
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
     if (!counterDoc.exists()) {
       transaction.set(counterRef, { lastNumber: 1000 });
       return 1001;
     }
+<<<<<<< HEAD
 
+=======
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
     const newNumber = counterDoc.data().lastNumber + 1;
     transaction.update(counterRef, { lastNumber: newNumber });
     return newNumber;
@@ -99,14 +128,20 @@ export const createOrder = async (orderData: any) => {
   try {
     const orderNumber = await generateOrderNumber();
     const orderId = `ORD-${orderNumber}`;
+<<<<<<< HEAD
 
+=======
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
     await setDoc(doc(db, "orders", orderId), {
       ...orderData,
       orderNumber,
       createdAt: serverTimestamp(),
       status: 'pending'
     });
+<<<<<<< HEAD
 
+=======
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
     return { success: true, orderId };
   } catch (error) {
     console.error("Error creating order:", error);

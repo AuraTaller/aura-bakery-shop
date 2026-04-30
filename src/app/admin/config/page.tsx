@@ -5,7 +5,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { DEFAULT_DELIVERY_TIME_SLOTS, fetchAllProductsAdmin } from '../../../lib/api';
 import { Product } from '../../../lib/mockData';
-import { Settings, CalendarX, Clock, Save, Trash2, Plus, CalendarDays, Star, ArrowUp, ArrowDown } from 'lucide-react';
+import { Settings, CalendarX, Clock, Save, Trash2, Plus, CalendarDays, Star, ArrowUp, ArrowDown, Timer } from 'lucide-react';
 import { Cormorant_Garamond } from 'next/font/google';
 
 const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ['600'] });
@@ -25,15 +25,23 @@ export default function ConfigPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
-    // --- State for existing sections ---
+    // Delivery States
     const [cutoffTime, setCutoffTime] = useState(17);
     const [closedDays, setClosedDays] = useState<number[]>([]);
     const [blackoutDates, setBlackoutDates] = useState<string[]>([]);
+<<<<<<< HEAD
     const [newDate, setNewDate] = useState('');
     const [timeSlots, setTimeSlots] = useState<string[]>(DEFAULT_DELIVERY_TIME_SLOTS);
     const [newTimeSlot, setNewTimeSlot] = useState('');
+=======
+    const [deliveryWindows, setDeliveryWindows] = useState<string[]>([]);
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
 
-    // --- State for Featured Products ---
+    // UI Helper States
+    const [newDate, setNewDate] = useState('');
+    const [newWindow, setNewWindow] = useState('');
+
+    // Featured States
     const [allProducts, setAllProducts] = useState<Product[]>([]);
     const [featuredIds, setFeaturedIds] = useState<string[]>([]);
     const [selectedProductId, setSelectedProductId] = useState('');
@@ -41,38 +49,39 @@ export default function ConfigPage() {
     useEffect(() => {
         const fetchConfigAndProducts = async () => {
             try {
-                // Load Delivery Config
                 const deliveryRef = doc(db, 'settings', 'delivery');
                 const deliverySnap = await getDoc(deliveryRef);
                 if (deliverySnap.exists()) {
                     const data = deliverySnap.data();
                     setCutoffTime(data.cutoffTime ?? 17);
                     setClosedDays(data.closedDaysOfWeek ?? [0]);
+<<<<<<< HEAD
                     setBlackoutDates(Array.isArray(data.blackoutDates) ? [...data.blackoutDates].sort() : []);
                     setTimeSlots(Array.isArray(data.timeSlots) && data.timeSlots.length ? data.timeSlots : DEFAULT_DELIVERY_TIME_SLOTS);
+=======
+                    setBlackoutDates(data.blackoutDates || []);
+                    setDeliveryWindows(data.deliveryWindows || ["Mañana (8:00 AM - 12:00 PM)", "Tarde (1:00 PM - 5:00 PM)"]);
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
                 }
 
-                // Load Featured Config
                 const featRef = doc(db, 'settings', 'featured');
                 const featSnap = await getDoc(featRef);
                 if (featSnap.exists()) {
                     setFeaturedIds(featSnap.data().productIds || []);
                 }
 
-                // Load Product List
                 const products = await fetchAllProductsAdmin();
                 setAllProducts(products);
-
             } catch (error) {
-                console.error("Error al cargar configuración:", error);
+                console.error("Error loading config:", error);
             } finally {
                 setIsLoading(false);
             }
         };
-
         fetchConfigAndProducts();
     }, []);
 
+<<<<<<< HEAD
     const toggleDay = (dayId: number) => {
         setClosedDays(prev => prev.includes(dayId) ? prev.filter(d => d !== dayId) : [...prev, dayId]);
     };
@@ -117,47 +126,67 @@ export default function ConfigPage() {
         setFeaturedIds(newIds);
     };
 
+=======
+    // --- Handlers ---
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
     const handleSave = async () => {
         setIsSaving(true);
         setMessage({ type: '', text: '' });
-
         try {
-            // Save Delivery Settings
-            const deliveryRef = doc(db, 'settings', 'delivery');
-            await setDoc(deliveryRef, {
+            await setDoc(doc(db, 'settings', 'delivery'), {
                 cutoffTime: Number(cutoffTime),
                 closedDaysOfWeek: closedDays,
                 blackoutDates: blackoutDates,
+<<<<<<< HEAD
                 timeSlots: timeSlots
+=======
+                deliveryWindows: deliveryWindows
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
             }, { merge: true });
 
-            // Save Featured Products
-            const featRef = doc(db, 'settings', 'featured');
-            await setDoc(featRef, { productIds: featuredIds }, { merge: true });
+            await setDoc(doc(db, 'settings', 'featured'), { productIds: featuredIds }, { merge: true });
 
-            setMessage({ type: 'success', text: '¡Configuración guardada exitosamente!' });
+            setMessage({ type: 'success', text: '¡Cambios guardados!' });
             setTimeout(() => setMessage({ type: '', text: '' }), 3000);
         } catch (error) {
-            console.error("Error guardando:", error);
-            setMessage({ type: 'error', text: 'Error al guardar. Intenta de nuevo.' });
+            setMessage({ type: 'error', text: 'Error al guardar.' });
         } finally {
             setIsSaving(false);
         }
     };
 
+<<<<<<< HEAD
     if (isLoading) {
         return <div className="p-10 text-zinc-400 animate-pulse">cargando configuración...</div>;
     }
+=======
+    const addWindow = () => {
+        if (!newWindow || deliveryWindows.includes(newWindow)) return;
+        setDeliveryWindows([...deliveryWindows, newWindow]);
+        setNewWindow('');
+    };
+
+    const removeWindow = (win: string) => {
+        setDeliveryWindows(deliveryWindows.filter(w => w !== win));
+    };
+
+    if (isLoading) return <div className="p-10 text-zinc-400 lowercase animate-pulse">cargando...</div>;
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
 
     return (
         <div className="max-w-4xl mx-auto px-8 py-10 font-sans pb-32">
             <div className="flex items-center justify-between mb-8">
+<<<<<<< HEAD
                 <div>
                     <h1 className={`text-4xl text-zinc-900 ${cormorant.className}`}>configuración</h1>
                     <p className="text-zinc-500 text-sm mt-1">gestiona la tienda y entregas.</p>
                 </div>
 
                 <button onClick={handleSave} disabled={isSaving} className="bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-800 active:scale-95 transition-all disabled:opacity-50">
+=======
+                <h1 className={`text-4xl text-zinc-900 ${cormorant.className}`}>configuración</h1>
+                <button onClick={handleSave} disabled={isSaving} className="bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-800 transition-all lowercase disabled:opacity-50">
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
                     <Save size={18} /> {isSaving ? 'guardando...' : 'guardar cambios'}
                 </button>
             </div>
@@ -169,11 +198,12 @@ export default function ConfigPage() {
             )}
 
             <div className="space-y-6">
-                {/* PRODUCTOS DESTACADOS SECTION */}
+                {/* JORNADAS DE ENTREGA */}
                 <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
                     <div className="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
-                        <div className="bg-yellow-50 text-yellow-600 p-2 rounded-lg"><Star size={20} /></div>
+                        <div className="bg-purple-50 text-purple-600 p-2 rounded-lg"><Timer size={20} /></div>
                         <div>
+<<<<<<< HEAD
                             <h2 className="font-bold text-zinc-900 text-lg">productos destacados (home)</h2>
                             <p className="text-xs text-zinc-500">selecciona qué productos aparecen en la página principal y su orden.</p>
                         </div>
@@ -267,20 +297,71 @@ export default function ConfigPage() {
                     <select value={cutoffTime} onChange={(e) => setCutoffTime(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-black focus:ring-1 transition-all w-48 font-bold text-zinc-700">
                         {[12, 13, 14, 15, 16, 17, 18, 19, 20].map(h => (
                             <option key={h} value={h}>{h === 12 ? '12:00 PM (Mediodía)' : `${h - 12}:00 PM`}</option>
+=======
+                            <h2 className="font-bold text-zinc-900 text-lg lowercase">jornadas de entrega</h2>
+                            <p className="text-xs text-zinc-500 lowercase">define los rangos horarios que el cliente puede elegir.</p>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 mb-4">
+                        <input
+                            type="text"
+                            placeholder="Ej: Mañana (8:00 AM - 12:00 PM)"
+                            value={newWindow}
+                            onChange={(e) => setNewWindow(e.target.value)}
+                            className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-black transition-all flex-1"
+                        />
+                        <button onClick={addWindow} className="bg-zinc-100 px-6 py-3 rounded-xl font-bold hover:bg-zinc-200"><Plus size={18} /></button>
+                    </div>
+
+                    <div className="space-y-2">
+                        {deliveryWindows.map(win => (
+                            <div key={win} className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                <span className="text-sm font-medium text-zinc-700 lowercase">{win}</span>
+                                <button onClick={() => removeWindow(win)} className="text-red-400 hover:text-red-600 p-1.5"><Trash2 size={16} /></button>
+                            </div>
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
                         ))}
-                    </select>
+                    </div>
                 </div>
 
-                {/* DÍAS CERRADOS SECTION */}
+                {/* DESTACADOS */}
                 <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
                     <div className="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+<<<<<<< HEAD
                         <div className="bg-orange-50 text-orange-600 p-2 rounded-lg"><CalendarDays size={20} /></div>
                         <div>
                             <h2 className="font-bold text-zinc-900 text-lg">días de descanso fijo</h2>
                         </div>
+=======
+                        <div className="bg-yellow-50 text-yellow-600 p-2 rounded-lg"><Star size={20} /></div>
+                        <h2 className="font-bold text-zinc-900 text-lg lowercase">productos destacados</h2>
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
                     </div>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex gap-3 mb-4">
+                        <select value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)} className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none flex-1">
+                            <option value="">selecciona un producto...</option>
+                            {allProducts.filter(p => !featuredIds.includes(p.id)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <button onClick={() => { if (selectedProductId) { setFeaturedIds([...featuredIds, selectedProductId]); setSelectedProductId(''); } }} className="bg-zinc-100 px-6 py-3 rounded-xl font-bold"><Plus size={18} /></button>
+                    </div>
+                    <div className="space-y-2">
+                        {featuredIds.map((id, index) => (
+                            <div key={id} className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                <span className="bg-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-400">{index + 1}</span>
+                                <span className="flex-1 font-bold text-zinc-800 lowercase">{allProducts.find(p => p.id === id)?.name}</span>
+                                <button onClick={() => setFeaturedIds(featuredIds.filter(i => i !== id))} className="text-red-400"><Trash2 size={16} /></button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* DÍAS CERRADOS & FESTIVOS (Minimal versions for brevity) */}
+                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                    <h2 className="font-bold text-zinc-900 text-lg lowercase mb-4">días de descanso</h2>
+                    <div className="flex flex-wrap gap-2">
                         {DAYS_OF_WEEK.map(day => (
+<<<<<<< HEAD
                             <button key={day.id} onClick={() => toggleDay(day.id)} className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${closedDays.includes(day.id) ? 'bg-orange-100 text-orange-800 border-orange-200 shadow-sm' : 'bg-white text-zinc-400 border-gray-200 hover:border-zinc-300'}`}>{day.name}</button>
                         ))}
                     </div>
@@ -311,6 +392,12 @@ export default function ConfigPage() {
                         })}
                     </div>
                 </div>
+=======
+                            <button key={day.id} onClick={() => setClosedDays(prev => prev.includes(day.id) ? prev.filter(d => d !== day.id) : [...prev, day.id])} className={`px-4 py-2 rounded-xl text-xs font-bold lowercase border ${closedDays.includes(day.id) ? 'bg-orange-100 border-orange-200' : 'bg-white border-gray-200'}`}>{day.name}</button>
+                        ))}
+                    </div>
+                </div>
+>>>>>>> ff3d7d4 (Fix tiempos de entrega)
             </div>
         </div>
     );
