@@ -55,7 +55,7 @@ export default function InventoryDashboard() {
 
     // Estado reactivo de las líneas de receta (BOM)
     const [bomItems, setBomItems] = useState<BillOfMaterials[]>([]);
-
+    const [batchYield, setBatchYield] = useState<number>(1);
     /**
      * Carga el catálogo completo desde la colección 'inventory_items' de Firestore[cite: 1, 2].
      */
@@ -79,6 +79,7 @@ export default function InventoryDashboard() {
      * Inicializa los valores del formulario para crear un nuevo ítem o editar uno existente[cite: 2].
      */
     const handleOpenModal = (item?: InventoryItem) => {
+        setBatchYield(1);
         if (item) {
             setEditingId(item.id!);
             setBomItems(item.bom || []);
@@ -134,9 +135,14 @@ export default function InventoryDashboard() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const processedBom = bomItems.map(item => ({
+                ...item,
+                quantity: item.quantity / batchYield
+            }));
+
             const payload = {
                 ...formData,
-                bom: bomItems,
+                bom: processedBom,
             };
 
             if (editingId) {
@@ -258,10 +264,10 @@ export default function InventoryDashboard() {
                                     {/* BADGE DE NIVEL DE INVENTARIO */}
                                     <td className="p-4">
                                         <span className={`px-2.5 py-1 text-xs rounded-lg font-bold border ${item.type === 'finished_good'
-                                                ? 'bg-green-50 text-green-700 border-green-200'
-                                                : item.type === 'wip'
-                                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                                    : 'bg-orange-50 text-orange-700 border-orange-200'
+                                            ? 'bg-green-50 text-green-700 border-green-200'
+                                            : item.type === 'wip'
+                                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                                : 'bg-orange-50 text-orange-700 border-orange-200'
                                             }`}>
                                             {item.type === 'finished_good' ? 'Final' : item.type === 'wip' ? 'WIP' : 'Materia Prima'}
                                         </span>
@@ -276,8 +282,8 @@ export default function InventoryDashboard() {
                                     {/* STOCK CON ALERTA VISUAL DE UMBRAL MÍNIMO */}
                                     <td className="p-4">
                                         <span className={`font-bold ${item.currentStock <= item.minStockLevel
-                                                ? 'text-red-500 bg-red-50 px-2 py-1 rounded-md'
-                                                : 'text-zinc-700'
+                                            ? 'text-red-500 bg-red-50 px-2 py-1 rounded-md'
+                                            : 'text-zinc-700'
                                             }`}>
                                             {item.currentStock}
                                         </span>
@@ -459,7 +465,22 @@ export default function InventoryDashboard() {
                                                 + Agregar Insumo
                                             </button>
                                         </div>
-
+                                        {/* NEW: Batch Yield Calculator UI */}
+                                        <div className="mb-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                            <label className="text-sm font-bold text-zinc-900 block mb-1">Rendimiento del Lote (Opcional)</label>
+                                            <p className="text-xs text-zinc-500 mb-3">Si ingresas los insumos para una tanda grande, indica cuántas unidades rinde. El sistema hará la división matemática por ti.</p>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-sm font-medium text-zinc-700">Este lote rinde:</span>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={batchYield}
+                                                    onChange={(e) => setBatchYield(Number(e.target.value) || 1)}
+                                                    className="w-24 p-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-black text-center font-bold"
+                                                />
+                                                <span className="text-sm font-medium text-zinc-700">unidades finales</span>
+                                            </div>
+                                        </div>
                                         {bomItems.length === 0 ? (
                                             <p className="text-sm text-gray-400 italic bg-gray-50 p-3 rounded-xl border border-gray-200">
                                                 Este producto no tiene insumos dependientes asignados[cite: 2].
@@ -533,8 +554,8 @@ export default function InventoryDashboard() {
                                                     type="button"
                                                     onClick={() => toggleSalesChannel(channel)}
                                                     className={`flex-1 py-3 border-2 rounded-xl font-bold uppercase tracking-wider text-xs transition-all ${formData.salesChannels?.includes(channel)
-                                                            ? 'border-black bg-black text-white shadow-md'
-                                                            : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-zinc-700 bg-white'
+                                                        ? 'border-black bg-black text-white shadow-md'
+                                                        : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-zinc-700 bg-white'
                                                         }`}
                                                 >
                                                     {channel}
